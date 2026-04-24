@@ -75,6 +75,23 @@ function deriveBotLabel(mentionPattern: string): string {
   return `[${name.charAt(0).toUpperCase()}${name.slice(1)}]`;
 }
 
+function stripMarkdown(text: string): string {
+  return text
+    .replace(/```[\s\S]*?```/g, (m) => m.replace(/```\w*\n?/g, "").replace(/```/g, "").trim())
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/!\[([^\]]*)\]\([^)]+\)/g, "$1")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, "$1 ($2)")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/(\*\*|__)(.*?)\1/g, "$2")
+    .replace(/(\*|_)(.*?)\1/g, "$2")
+    .replace(/~~(.*?)~~/g, "$1")
+    .replace(/^>\s?/gm, "")
+    .replace(/^[-*+]\s+/gm, "- ")
+    .replace(/^\d+\.\s+/gm, (m) => m)
+    .replace(/^---+$/gm, "")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 // --- Monitor Provider ---
 
 export async function monitorImessageQuietProvider(ctx: {
@@ -139,6 +156,7 @@ export async function monitorImessageQuietProvider(ctx: {
     const preamble = [
       `[iMessage channel — you were explicitly invoked with ${mentionLabel}.]`,
       `[Rules: Reply ONLY to what was asked. Do not volunteer other topics or send proactive updates into this channel. Do not treat iMessage as your primary communication channel. After completing this request, go quiet until the next ${mentionLabel} invocation. You are the user's assistant in this conversation — other messages in the thread that do not contain ${mentionLabel} are not directed at you.]`,
+      `[Format: This is iMessage — plain text only. No markdown syntax (no **, *, \`, #, [], (), etc.). Use natural language, dashes for lists, and line breaks for structure.]`,
       `[Your replies will be automatically prefixed with "${botLabel}" so the other person knows the message is from you, not the user. Do not add your own prefix.]`,
     ].join("\n");
 
@@ -197,10 +215,12 @@ export async function monitorImessageQuietProvider(ctx: {
           stripInlineDirectiveTagsForDelivery(payload.text ?? "").text,
         );
         if (!replyText.trim()) return;
+        const plainText = stripMarkdown(replyText);
+        if (!plainText.trim()) return;
         await sendMessageQuiet({
           config: cfg,
           to: replyTarget,
-          text: `${botLabel} ${replyText}`,
+          text: `${botLabel} ${plainText}`,
           accountId: account.accountId,
           client: activeClient ?? undefined,
         });
