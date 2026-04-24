@@ -53,10 +53,6 @@ export function resolveImessageQuietAccount(params: {
   const configured = Boolean(
     merged.cliPath?.trim() ||
       merged.dbPath?.trim() ||
-      (merged.allowFrom && merged.allowFrom.length > 0) ||
-      (merged.groupAllowFrom && merged.groupAllowFrom.length > 0) ||
-      merged.dmPolicy ||
-      merged.groupPolicy ||
       (merged.mentionPatterns && merged.mentionPatterns.length > 0),
   );
 

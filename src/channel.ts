@@ -2,7 +2,6 @@ import {
   createChatChannelPlugin,
   createChannelPluginBase,
 } from "openclaw/plugin-sdk/channel-core";
-import { createRestrictSendersChannelSecurity } from "openclaw/plugin-sdk/channel-policy";
 import { sanitizeForPlainText } from "openclaw/plugin-sdk/outbound-runtime";
 import {
   buildOutboundBaseSessionKey,
@@ -11,15 +10,14 @@ import {
 import type { OpenClawConfig } from "openclaw/plugin-sdk/config-runtime";
 import {
   resolveImessageQuietAccount,
+  listImessageQuietAccountIds,
+  resolveDefaultImessageQuietAccountId,
   type ResolvedImessageQuietAccount,
 } from "./accounts.js";
 import { sendMessageQuiet } from "./send.js";
 import { monitorImessageQuietProvider } from "./monitor/provider.js";
 
-// --- Constants ---
-
 const CHANNEL_ID = "imessage-quiet" as const;
-const DEFAULT_ACCOUNT_ID = "default";
 
 // --- Target Parsing ---
 
@@ -106,18 +104,6 @@ function normalizeMessagingTarget(raw: string): string {
 
 // --- Session Key ---
 
-function buildSessionKey(params: {
-  cfg: OpenClawConfig;
-  agentId: string;
-  accountId?: string | null;
-  peer: RoutePeer;
-}) {
-  return buildOutboundBaseSessionKey({
-    ...params,
-    channel: CHANNEL_ID,
-  });
-}
-
 function resolveOutboundSessionRoute(params: {
   cfg: OpenClawConfig;
   agentId: string;
@@ -129,7 +115,13 @@ function resolveOutboundSessionRoute(params: {
     const handle = normalizeHandle(parsed.to);
     if (!handle) return null;
     const peer: RoutePeer = { kind: "direct", id: handle };
-    const key = buildSessionKey({ cfg: params.cfg, agentId: params.agentId, accountId: params.accountId, peer });
+    const key = buildOutboundBaseSessionKey({
+      cfg: params.cfg,
+      agentId: params.agentId,
+      accountId: params.accountId,
+      channel: CHANNEL_ID,
+      peer,
+    });
     return {
       sessionKey: key,
       baseSessionKey: key,
@@ -145,7 +137,13 @@ function resolveOutboundSessionRoute(params: {
     parsed.chatIdentifier;
   if (!peerId) return null;
   const peer: RoutePeer = { kind: "group", id: peerId };
-  const key = buildSessionKey({ cfg: params.cfg, agentId: params.agentId, accountId: params.accountId, peer });
+  const key = buildOutboundBaseSessionKey({
+    cfg: params.cfg,
+    agentId: params.agentId,
+    accountId: params.accountId,
+    channel: CHANNEL_ID,
+    peer,
+  });
   const toPrefix =
     parsed.kind === "chat_id" ? "chat_id" :
     parsed.kind === "chat_guid" ? "chat_guid" :
@@ -160,101 +158,75 @@ function resolveOutboundSessionRoute(params: {
   };
 }
 
-// --- Security Adapter ---
-
-const securityAdapter = createRestrictSendersChannelSecurity<ResolvedImessageQuietAccount>({
-  channelKey: CHANNEL_ID,
-  resolveDmPolicy: (account) => account.config.dmPolicy ?? "allowlist",
-  resolveDmAllowFrom: (account) => account.config.allowFrom ?? [],
-  resolveGroupPolicy: (account) => account.config.groupPolicy ?? "allowlist",
-  surface: "iMessage (Quiet) groups",
-  openScope: "any member",
-  groupPolicyPath: `channels.${CHANNEL_ID}.groupPolicy`,
-  groupAllowFromPath: `channels.${CHANNEL_ID}.groupAllowFrom`,
-  mentionGated: true,
-  policyPathSuffix: "dmPolicy",
-});
-
-// --- Status Adapter ---
-
-const statusAdapter = {
-  inspectAccount(cfg: OpenClawConfig, accountId?: string | null) {
-    const account = resolveImessageQuietAccount({ cfg, accountId });
-    return {
-      enabled: account.enabled,
-      configured: account.configured,
-      accountId: account.accountId,
-    };
-  },
-};
-
-// --- Coexistence Check ---
-
-function checkCoexistence(cfg: OpenClawConfig): void {
-  const imessageSection = (cfg.channels as Record<string, any>)?.["imessage"];
-  if (imessageSection && imessageSection.enabled !== false) {
-    console.warn(
-      "[imessage-quiet] WARNING: Built-in 'imessage' channel is also enabled. " +
-      "Running both channels simultaneously will cause duplicate responses. " +
-      "Disable channels.imessage.enabled in openclaw.json."
-    );
-  }
-}
-
 // --- Plugin Assembly ---
 
 export const imessageQuietPlugin = createChatChannelPlugin<ResolvedImessageQuietAccount>({
-  base: createChannelPluginBase({
-    id: CHANNEL_ID,
-    meta: {
-      label: "iMessage (Quiet)",
-      aliases: ["imsg-quiet"],
-      showConfigured: false,
-    },
-    capabilities: {
-      chatTypes: ["direct", "group"],
-      media: false,
-    },
-    setup: {
-      resolveAccount: (cfg: OpenClawConfig, accountId?: string | null) =>
-        resolveImessageQuietAccount({ cfg, accountId }),
-      inspectAccount: statusAdapter.inspectAccount,
-    },
-    security: securityAdapter,
-    messaging: {
-      normalizeTarget: (params: { to: string }) => normalizeMessagingTarget(params.to),
-      inferTargetChatType: (params: { to: string }) => inferTargetChatType(params.to),
-      resolveOutboundSessionRoute: (params: {
-        cfg: OpenClawConfig;
-        agentId: string;
-        accountId?: string | null;
-        target: string;
-      }) => resolveOutboundSessionRoute(params),
-      targetResolver: {
-        looksLikeId: (value: string) => looksLikeExplicitTargetId(value),
-        hint: "<handle|chat_id:ID>",
-        resolveTarget: async (params: { normalized?: string }) => {
-          const to = params.normalized?.trim();
-          if (!to) return null;
-          const chatType = inferTargetChatType(to);
-          if (!chatType) return null;
+  base: {
+    ...createChannelPluginBase({
+      id: CHANNEL_ID,
+      meta: {
+        label: "iMessage (Quiet)",
+        aliases: ["imsg-quiet"],
+        showConfigured: false,
+      },
+      capabilities: {
+        chatTypes: ["direct", "group"],
+        media: false,
+      },
+      setup: {
+        listAccountIds: (cfg: OpenClawConfig) =>
+          listImessageQuietAccountIds(cfg),
+        resolveDefaultAccountId: (cfg: OpenClawConfig) =>
+          resolveDefaultImessageQuietAccountId(cfg),
+        resolveAccount: (cfg: OpenClawConfig, accountId?: string | null) =>
+          resolveImessageQuietAccount({ cfg, accountId }),
+        inspectAccount: (cfg: OpenClawConfig, accountId?: string | null) => {
+          const account = resolveImessageQuietAccount({ cfg, accountId });
           return {
-            to,
-            kind: chatType === "direct" ? "user" as const : "group" as const,
-            source: "normalized" as const,
+            enabled: account.enabled,
+            configured: account.configured,
+            accountId: account.accountId,
           };
         },
       },
-    },
+      config: {
+        listAccountIds: (cfg: OpenClawConfig) =>
+          listImessageQuietAccountIds(cfg),
+        resolveAccount: (cfg: OpenClawConfig, accountId?: string | null) =>
+          resolveImessageQuietAccount({ cfg, accountId }),
+      },
+      messaging: {
+        normalizeTarget: (params: { to: string }) => normalizeMessagingTarget(params.to),
+        inferTargetChatType: (params: { to: string }) => inferTargetChatType(params.to),
+        resolveOutboundSessionRoute: (params: {
+          cfg: OpenClawConfig;
+          agentId: string;
+          accountId?: string | null;
+          target: string;
+        }) => resolveOutboundSessionRoute(params),
+        targetResolver: {
+          looksLikeId: (value: string) => looksLikeExplicitTargetId(value),
+          hint: "<handle|chat_id:ID>",
+          resolveTarget: async (params: { normalized?: string }) => {
+            const to = params.normalized?.trim();
+            if (!to) return null;
+            const chatType = inferTargetChatType(to);
+            if (!chatType) return null;
+            return {
+              to,
+              kind: chatType === "direct" ? "user" as const : "group" as const,
+              source: "normalized" as const,
+            };
+          },
+        },
+      },
+    }),
     gateway: {
       startAccount: async (ctx) => {
-        checkCoexistence(ctx.cfg);
         await monitorImessageQuietProvider(ctx);
       },
     },
-  }),
-
-  security: securityAdapter,
+  },
 
   outbound: {
     base: {
