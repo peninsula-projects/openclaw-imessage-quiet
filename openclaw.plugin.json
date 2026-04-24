@@ -1,0 +1,103 @@
+{
+  "id": "imessage-quiet",
+  "kind": "channel",
+  "channels": ["imessage-quiet"],
+  "name": "iMessage (Quiet)",
+  "description": "Mention-gated iMessage channel plugin — speak when spoken to, no persistent threads",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "imessage-quiet": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "Enable or disable the imessage-quiet channel",
+            "default": true
+          },
+          "accounts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "enabled": { "type": "boolean" },
+                "name": { "type": "string" },
+                "cliPath": {
+                  "type": "string",
+                  "description": "Path to the imsg CLI binary",
+                  "default": "imsg"
+                },
+                "dbPath": {
+                  "type": "string",
+                  "description": "Path to iMessage chat.db (optional override)"
+                },
+                "dmPolicy": {
+                  "type": "string",
+                  "enum": ["open", "allowlist", "disabled"],
+                  "description": "DM access policy. Default: allowlist",
+                  "default": "allowlist"
+                },
+                "groupPolicy": {
+                  "type": "string",
+                  "enum": ["open", "allowlist", "disabled"],
+                  "description": "Group chat access policy. Default: allowlist",
+                  "default": "allowlist"
+                },
+                "allowFrom": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "DM allowlist: phone numbers, emails, or chat_id: prefixes"
+                },
+                "groupAllowFrom": {
+                  "type": "array",
+                  "items": { "type": "string" },
+                  "description": "Group allowlist: chat_id: values or sender identifiers"
+                },
+                "mentionPatterns": {
+                  "type": "array",
+                  "items": { "type": "string", "maxLength": 50 },
+                  "description": "Patterns to detect @mentions (e.g. ['@millbot'])"
+                },
+                "maxInboundLength": {
+                  "type": "integer",
+                  "description": "Maximum inbound message length in characters",
+                  "default": 8000,
+                  "minimum": 100,
+                  "maximum": 32000
+                },
+                "rateLimitPerConversation": {
+                  "type": "integer",
+                  "description": "Max dispatches per conversation per 60s window",
+                  "default": 5,
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "rateLimitGlobal": {
+                  "type": "integer",
+                  "description": "Max dispatches globally per 60s window",
+                  "default": 20,
+                  "minimum": 1,
+                  "maximum": 500
+                }
+              }
+            },
+            "description": "Named accounts (use 'default' for single-account setup)"
+          },
+          "cliPath": { "type": "string" },
+          "dbPath": { "type": "string" },
+          "dmPolicy": { "type": "string", "enum": ["open", "allowlist", "disabled"] },
+          "groupPolicy": { "type": "string", "enum": ["open", "allowlist", "disabled"] },
+          "allowFrom": { "type": "array", "items": { "type": "string" } },
+          "groupAllowFrom": { "type": "array", "items": { "type": "string" } },
+          "mentionPatterns": { "type": "array", "items": { "type": "string", "maxLength": 50 } },
+          "maxInboundLength": { "type": "integer" },
+          "rateLimitPerConversation": { "type": "integer" },
+          "rateLimitGlobal": { "type": "integer" }
+        }
+      }
+    }
+  }
+}

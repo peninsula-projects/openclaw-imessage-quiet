@@ -1,0 +1,39 @@
+{
+  "name": "@millbot/openclaw-imessage-quiet",
+  "version": "1.0.0",
+  "description": "Mention-gated iMessage channel plugin for OpenClaw — speak when spoken to",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@openclaw/plugin-sdk": ">=2026.4.14",
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0"
+  },
+  "openclaw": {
+    "extensions": ["./index.ts"],
+    "runtimeExtensions": ["./dist/index.js"],
+    "setupEntry": "./setup-entry.ts",
+    "runtimeSetupEntry": "./dist/setup-entry.js",
+    "compat": {
+      "pluginApi": ">=2026.4.14",
+      "minGatewayVersion": "2026.4.14"
+    },
+    "channel": {
+      "id": "imessage-quiet",
+      "label": "iMessage (Quiet)",
+      "selectionLabel": "iMessage (Quiet)",
+      "detailLabel": "iMessage Quiet",
+      "blurb": "Mention-gated iMessage channel. Speaks only when spoken to.",
+      "aliases": ["imsg-quiet"],
+      "systemImage": "message.fill"
+    }
+  }
+}
