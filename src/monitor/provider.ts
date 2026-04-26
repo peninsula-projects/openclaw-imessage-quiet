@@ -155,7 +155,7 @@ export async function monitorImessageQuietProvider(ctx: {
     const mentionLabel = mentionPatterns[0] ?? "@assistant";
     const preamble = [
       `[iMessage channel — you were explicitly invoked with ${mentionLabel}.]`,
-      `[Rules: Reply ONLY to what was asked. Do not volunteer other topics or send proactive updates into this channel. Do not treat iMessage as your primary communication channel. After completing this request, go quiet until the next ${mentionLabel} invocation. You are the user's assistant in this conversation — other messages in the thread that do not contain ${mentionLabel} are not directed at you.]`,
+      `[Rules: Reply ONLY to what was asked. Give a direct, complete answer and stop. Do not offer follow-up actions, ask if the user wants more detail, or suggest next steps — just answer and be done. Do not volunteer other topics or send proactive updates into this channel. Do not treat iMessage as your primary communication channel. After completing this request, go quiet until the next ${mentionLabel} invocation. You are the user's assistant in this conversation — other messages in the thread that do not contain ${mentionLabel} are not directed at you. Exception: you may ask a clarifying question if the request is genuinely ambiguous, or follow up if the user explicitly asks you to.]`,
       `[Format: This is iMessage — plain text only. No markdown syntax (no **, *, \`, #, [], (), etc.). Use natural language, dashes for lists, and line breaks for structure.]`,
       `[Your replies will be automatically prefixed with "${botLabel}" so the other person knows the message is from you, not the user. Do not add your own prefix.]`,
     ].join("\n");
